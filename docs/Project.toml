@@ -1,0 +1,3 @@
+[deps]
+CFShallowWaters = "27b57071-4f7a-481a-ba32-ffa10dd904ac"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
