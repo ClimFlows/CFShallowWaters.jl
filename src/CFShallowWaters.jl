@@ -1,6 +1,5 @@
 module CFShallowWaters
 
-import CFTimeSchemes: scratch_space, tendencies!, scratch_space, model_dstate
 using CFDomains: VoronoiSphere, allocate_fields, allocate_field
 using CFPlanets: ShallowTradPlanet, coriolis, scale_factor
 using ManagedLoops: @loops, @unroll
@@ -58,10 +57,6 @@ struct Oblate_RSW{Planet,Domain,RLambda,RPhi} <: AbstractSW
 end
 
 RSW(planet::ShallowTradPlanet, domain) = Traditional_RSW(planet, domain)
-# tendencies!(::Void, model::Traditional_RSW, state, _, _) = tendencies_SW(state, model, model.domain)
-tendencies!(dstate, model::Traditional_RSW, state, scratch, _) = tendencies_SW!(dstate, state, scratch, model, model.domain)
-scratch_space(model::AbstractSW, state) = scratch_SW(model.domain, state)
-model_dstate(model::AbstractSW, state0) = map(similar, state0)
 
 #=
 coriolis_cov(F, planet, domain::SpectralDomain) = F.(coriolis(planet, domain.lat))

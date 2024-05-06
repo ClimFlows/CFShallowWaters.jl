@@ -1,9 +1,15 @@
-#== Voronoi ==#
+#======== All =========#
+
+scratch_space(model, state) = scratch_SW(model.domain, state)
+tendencies!(dstate, model, state, scratch, t) = tendencies_SW!(dstate, state, scratch, model, model.domain)
+
+#========= Voronoi ========#
 
 function same(x,y)
     @assert x==y
     return x
 end
+
 
 function scratch_SW(domain::VoronoiSphere, (; ucov, ghcov))
     F = same(eltype(ucov), eltype(ghcov))
