@@ -13,6 +13,7 @@ MemberFunctions = "5d9104bf-354e-4e91-8ca5-37bef64dfa22"
 MutatingOrNot = "6a37069a-9a67-4b2d-a34a-f09ab4b23c7c"
 
 [compat]
+ManagedLoops = "0.1"
 julia = "1.8"
 
 [extras]
