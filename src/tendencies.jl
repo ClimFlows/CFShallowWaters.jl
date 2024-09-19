@@ -5,11 +5,12 @@ tendencies!(dstate, model, state, scratch, t) = tendencies_SW!(dstate, state, sc
 
 #========= Voronoi ========#
 
+using CFDomains: Stencils
+
 function same(x,y)
     @assert x==y
     return x
 end
-
 
 function scratch_SW(domain::VoronoiSphere, (; ucov, ghcov))
     F = same(eltype(ucov), eltype(ghcov))
@@ -19,8 +20,8 @@ end
 function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSphere)
     hodges = mesh.le_de
     radius = model.planet.radius
-    U = massflux!(scratch.U, ucov, ghcov, radius, mesh.edge_left_right, hodges)
-    B = bernoulli!(scratch.B, ghcov, ucov, radius, mesh.primal_deg, mesh.Ai, hodges, mesh.primal_edge)
+    U = massflux!(scratch.U, ucov, ghcov, radius, mesh)
+    B = bernoulli!(scratch.B, ghcov, ucov, radius, mesh)
     qv = voronoi_potential_vorticity!(scratch.qv, model.fcov, ucov, ghcov, mesh.Av, mesh.dual_vertex, mesh.dual_edge, mesh.dual_ne, mesh.Riv2)
     ducov = voronoi_du!(dstate.ucov, scratch.qe, qv, U, B, mesh.edge_down_up,
         mesh.edge_left_right, mesh.trisk_deg, mesh.trisk, mesh.wee)
@@ -29,9 +30,8 @@ function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSp
 end
 
 function tendencies_SW( (; ucov, ghcov), model, mesh::VoronoiSphere)
-    hodges = mesh.le_de
     radius = model.planet.radius
-    U = massflux(ucov, ghcov, radius, mesh.edge_left_right, hodges)
+    U = massflux!(void, ucov, ghcov, radius, mesh)
     B = bernoulli(ghcov, ucov, radius, mesh.primal_deg, mesh.Ai, hodges, mesh.primal_edge)
     qv = voronoi_potential_vorticity!(void, model.fcov, ucov, ghcov, mesh.Av, mesh.dual_vertex, mesh.dual_edge, mesh.dual_ne, mesh.Riv2)
     ducov = voronoi_du!(void, qv, U, B, mesh.edge_down_up,
@@ -40,69 +40,38 @@ function tendencies_SW( (; ucov, ghcov), model, mesh::VoronoiSphere)
     return (ghcov=dghcov, ucov=ducov)
 end
 
+similar!(::Void, x...) = similar(x...)
+similar!(y, x...) = y
+
 #== Voronoi, mass flux ==#
 
-massflux!(::Void, ucov, m, radius, left_right, hodges) =
-    massflux!(similar(ucov), ucov, m, radius, left_right, hodges)
-
-function massflux!(U::AbstractVector, ucov, m, radius, left_right, hodges)
-    @fast for ij in eachindex(hodges)
-        left, right = left_right[1,ij], left_right[2,ij]
-        U[ij] = inv(2*radius*radius)*(m[left]+m[right])*ucov[ij]*hodges[ij]
+function massflux!(U_, ucov, m, radius, vsphere)
+    U = similar!(U_, ucov)
+    @fast for ij in eachindex(U)
+        flux = Stencils.centered_flux(vsphere, ij)
+        U[ij] = inv(radius*radius)*flux(m, ucov) # scale by contravariant metric
     end
     return U
 end
 
-massflux!(backend, U::AbstractMatrix, args...) = massflux_3D!(backend, U, args...)
-
-@loops function massflux_3D!(_, U, ucov, m, radius, left_right, hodges)
-    let range = axes(U,2)
-        @fast for ij in range
-            nz = size(U,1)
-            left, right = left_right[1,ij], left_right[2,ij]
-            for k=1:nz
-                U[k,ij] = inv(2*radius*radius)*(m[k,left]+m[k,right])*ucov[k,ij]*hodges[ij]
-            end
-        end
-    end
-end
-
 #== Voronoi, kinetic energy ==#
 
-bernoulli!(::Void, gh, ucov, radius, degree, areas, hodges, edges) =
-    bernoulli!(similar(gh), gh, ucov, radius, degree, areas, hodges, edges)
-
-function bernoulli!(B::AbstractVector, gh, ucov, radius, degree, areas, hodges, edges)
+function bernoulli!(B_, gh, ucov, radius, vsphere)
+    B = similar!(B_, gh)
     inv_r2 = inv(radius*radius)
-    @fast for ij in eachindex(areas)
-        deg, inv_area = degree[ij], inv(4*areas[ij])
-        @unroll deg in 5:7 B[ij] = inv_r2 * (
-            gh[ij] + inv_area*sum(hodges[edges[e,ij]]*ucov[edges[e,ij]]^2 for e=1:deg) )
+    @fast for ij in eachindex(B)
+        deg = vsphere.primal_deg[ij]
+        @unroll deg in 5:7 begin
+            dot_product = Stencils.dot_product(vsphere, ij, Val(deg))
+            B[ij] = inv_r2 * (gh[ij] + dot_product(ucov, ucov)/2)
+        end
     end
     return B
 end
 
-bernoulli!(backend, B::AbstractMatrix, args...) = bernoulli_3D!(backend, B, args...)
+#=========== Fluid Poisson bracket elements ===========#
 
-@loops function bernoulli_3D!(_, B, ucov, radius, degree, areas, hodges, edges)
-    let range = axes(B,2)
-        nz = size(B,1)
-        @fast for ij in range
-            deg, aa = degree[ij], inv(4*areas[ij]*radius*radius)
-            @unroll deg in 5:7 begin
-                ee = (edges[e,ij] for e=1:deg)
-                hh = (hodges[ee[e]] for e=1:deg)
-                @simd for k=1:nz
-                    B[k,ij] += aa * sum(hh[e]*ucov[k,ee[e]]^2 for e=1:deg)
-                end
-            end
-        end
-    end
-end
-
-#== Voronoi, Poisson bracket ==#
-
-#== potential vorticity q = curl(ucov)/m ==#
+#== Voronoi, potential vorticity q = curl(ucov)/m ==#
 
 voronoi_potential_vorticity!(::Void, fv, ucov, m, areas, cells, edges, signs, weights) =
     voronoi_potential_vorticity!(similar(fv, eltype(ucov)), fv, ucov, m, areas, cells, edges, signs, weights)
