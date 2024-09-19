@@ -18,11 +18,10 @@ function scratch_SW(domain::VoronoiSphere, (; ucov, ghcov))
 end
 
 function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSphere)
-    hodges = mesh.le_de
     radius = model.planet.radius
     U = massflux!(scratch.U, ucov, ghcov, radius, mesh)
     B = bernoulli!(scratch.B, ghcov, ucov, radius, mesh)
-    qv = voronoi_potential_vorticity!(scratch.qv, model.fcov, ucov, ghcov, mesh.Av, mesh.dual_vertex, mesh.dual_edge, mesh.dual_ne, mesh.Riv2)
+    qv = voronoi_potential_vorticity!(scratch.qv, model.fcov, ucov, ghcov, mesh)
     ducov = voronoi_du!(dstate.ucov, scratch.qe, qv, U, B, mesh.edge_down_up,
         mesh.edge_left_right, mesh.trisk_deg, mesh.trisk, mesh.wee)
     dghcov = voronoi_dm!(dstate.ghcov, U, mesh.Ai, mesh.primal_deg, mesh.primal_edge, mesh.primal_ne)
@@ -73,33 +72,14 @@ end
 
 #== Voronoi, potential vorticity q = curl(ucov)/m ==#
 
-voronoi_potential_vorticity!(::Void, fv, ucov, m, areas, cells, edges, signs, weights) =
-    voronoi_potential_vorticity!(similar(fv, eltype(ucov)), fv, ucov, m, areas, cells, edges, signs, weights)
-
-function voronoi_potential_vorticity!(qv::AbstractVector, fv, ucov, m, areas, cells, edges, signs, weights)
-    @fast @unroll for ij in eachindex(qv)
-        zeta = sum(ucov[edges[edge,ij]]*signs[edge,ij] for edge=1:3 )
-        mv =  areas[ij]*sum(m[cells[vertex,ij]]*weights[vertex,ij] for vertex=1:3 )
+function voronoi_potential_vorticity!(qv_, fv, ucov, m, vsphere)
+    qv = similar!(qv_, fv, eltype(ucov))
+    @fast for ij in eachindex(qv)
+        zeta = Stencils.curl(vsphere, ij)(ucov)
+        mv = vsphere.Av[ij]*Stencils.average_iv(vsphere, ij)(m)
         qv[ij] = inv(mv)*(fv[ij]+zeta)
     end
     return qv
-end
-
-@loops function voronoi_potential_vorticity!(_, qv::AbstractMatrix, fv, ucov, m, areas, cells, edges, signs, weights)
-    let (krange, ijrange) = axes(qv)
-        @fast @unroll for ij in ijrange
-            F, nz = eltype(qv), size(qv,1)
-            ee = ( edges[edge,ij] for edge=1:3 )
-            ss = ( F(signs[edge,ij]) for edge=1:3 )
-            cc = ( cells[vertex,ij] for vertex=1:3 )
-            ww = ( weights[vertex,ij] for vertex=1:3 )
-            @simd for k in krange
-                zeta = sum(ucov[k,ee[edge]]*ss[edge] for edge=1:3 )
-                mv =  areas[ij]*sum(m[k,cc[vertex]]*ww[vertex] for vertex=1:3 )
-                qv[k,ij] = inv(mv)*(fv[ij]+zeta)
-            end
-        end
-    end
 end
 
 #== mass tendency dm = -div(U) ==#
