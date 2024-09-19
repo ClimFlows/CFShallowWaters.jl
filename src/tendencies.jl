@@ -106,5 +106,3 @@ function voronoi_du!(du_, qe_, qv, U, B, mesh)
     end
     return du
 end
-
-#== velocity tendency du = -q x U - grad B - theta * grad(B) ==#
