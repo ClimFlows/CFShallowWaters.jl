@@ -24,7 +24,7 @@ function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSp
     qv = voronoi_potential_vorticity!(scratch.qv, model.fcov, ucov, ghcov, mesh)
     ducov = voronoi_du!(dstate.ucov, scratch.qe, qv, U, B, mesh.edge_down_up,
         mesh.edge_left_right, mesh.trisk_deg, mesh.trisk, mesh.wee)
-    dghcov = voronoi_dm!(dstate.ghcov, U, mesh.Ai, mesh.primal_deg, mesh.primal_edge, mesh.primal_ne)
+    dghcov = voronoi_dm!(dstate.ghcov, U, mesh)
     return (ghcov=dghcov, ucov=ducov)
 end
 
@@ -87,57 +87,13 @@ end
 voronoi_dm!(::Void, U, areas, degree, edges, signs) =
     voronoi_dm!(similar(areas, eltype(U)), U, areas, degree, edges, signs)
 
-function voronoi_dm!(dm::AbstractVector, U, areas, degree, edges, signs)
+function voronoi_dm!(dm_, U, vsphere)
+    dm = similar!(dm_, vsphere.Ai, eltype(U))
     @fast for ij in eachindex(dm)
-        deg = degree[ij]
-        @unroll deg in 5:7 dm[ij] = -inv(areas[ij]) * sum( signs[e,ij]*U[edges[e,ij]] for e=1:deg )
+        deg = vsphere.primal_deg[ij]
+        @unroll deg in 5:7 dm[ij] = -Stencils.divergence(vsphere, ij, Val(deg))(U)
     end
     return dm
-end
-
-@loops function voronoi_dm_3D!(_, dm, U, areas, degree, edges, signs)
-    let (krange, ijrange) = (axes(dmass,1), axes(dmass,2))
-        F = eltype(dm)
-        @fast for ij in ijrange
-            deg, aa = degree[ij], inv(areas[ij])
-            @unroll deg in 5:7 begin
-                ee = ( edges[e,ij] for e=1:deg )
-                ss = ( F(signs[e,ij]) for e=1:deg )
-                @simd for k in krange
-                    dm[k,ij] = -aa * sum( ss[e]*U[k,ee[e]] for e=1:deg )
-                end
-            end
-        end
-    end
-end
-
-@loops function voronoi_dm_3D!(_, dmass, U, B, areas, degree, edges, signs, left_right)
-    let (krange, ijrange) = (axes(dmass,1), axes(dmass,2))
-        @views begin
-            dm     = dmass[:,:,1]
-            dTheta = dmass[:,:,2]
-            theta  = B[:,:,2]
-            left   = left_right[1,:]
-            right  = left_right[2,:]
-        end
-
-        F = eltype(dm)
-        @fast for ij in ijrange
-            deg, aa = degree[ij], inv(areas[ij])
-            aa2 = half(aa)
-            @unroll deg in 5:7 begin
-                ee = ( edges[e,ij] for e=1:deg )
-                ss = ( F(signs[e,ij]) for e=1:deg )
-                ll = ( left[ee[e]] for e=1:deg )
-                rr = ( right[ee[e]] for e=1:deg )
-                @simd for k in krange
-                    dm[k,ij] = -aa * sum( ss[e]*U[k,ee[e]] for e=1:deg )
-                    dTheta[k,ij] = -aa2 * sum( (ss[e]*U[k,ee[e]])*(theta[k,ll[e]]+theta[k,rr[e]]) for e=1:deg )
-                end
-            end
-        end
-
-    end
 end
 
 #== velocity tendency du = -q x U - grad B ==#
