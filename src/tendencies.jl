@@ -22,7 +22,7 @@ function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSp
 
     gh = scratch.gh
     @. gh = ghcov
-#    @. gh = inv_Ai*gh
+    @. gh = inv_Ai*gh
 
     U = massflux!(scratch.U, ucov, gh, radius, mesh.edge_left_right, hodges)
     B = bernoulli!(scratch.B, gh, ucov, radius, mesh.primal_deg, mesh.Ai, hodges, mesh.primal_edge)
@@ -31,7 +31,7 @@ function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSp
         mesh.edge_left_right, mesh.trisk_deg, mesh.trisk, mesh.wee)
     dghcov = voronoi_dm!(dstate.ghcov, U, mesh.Ai, mesh.primal_deg, mesh.primal_edge, mesh.primal_ne)
 
-    @. dghcov = inv_Ai * dghcov
+#    @. dghcov = inv_Ai * dghcov
 
     return (ghcov=dghcov, ucov=ducov)
 end

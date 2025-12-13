@@ -22,7 +22,7 @@ function initialize_SW(domain::VoronoiSphere, model, fun, args...)
     for ij in eachindex(ulon)
         gh_, ulon[ij], ulat[ij] = fun(domain.lon_e[ij], domain.lat_e[ij], args...)
     end
-    return observable_to_prognostic_old(model.planet, domain, (; gh, ulon, ulat))
+    return observable_to_prognostic_new(model.planet, domain, (; gh, ulon, ulat))
 end
 
 function observable_to_prognostic_old(planet, domain::VoronoiSphere, (; gh, ulon, ulat))
