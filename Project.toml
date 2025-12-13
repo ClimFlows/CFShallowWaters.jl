@@ -19,7 +19,7 @@ CFTimeSchemes = "79282218-dfaf-41aa-91df-a06f65ece871"
 CFTimeSchemes_Ext = ["CFTimeSchemes"]
 
 [compat]
-CFDomains = "0.1.1"
+CFDomains = "0.3"
 CFPlanets = "0.1"
 CookBooks = "0.2"
 ManagedLoops = "0.1.3"

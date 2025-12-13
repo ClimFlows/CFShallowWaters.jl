@@ -22,14 +22,29 @@ function initialize_SW(domain::VoronoiSphere, model, fun, args...)
     for ij in eachindex(ulon)
         gh_, ulon[ij], ulat[ij] = fun(domain.lon_e[ij], domain.lat_e[ij], args...)
     end
-    return observable_to_prognostic(model.planet, domain, (; gh, ulon, ulat))
+    return observable_to_prognostic_old(model.planet, domain, (; gh, ulon, ulat))
 end
 
-function observable_to_prognostic(planet, domain::VoronoiSphere, (; gh, ulon, ulat))
+function observable_to_prognostic_old(planet, domain::VoronoiSphere, (; gh, ulon, ulat))
     de, ghcov, ucov = domain.de, copy(gh), allocate_field(:vector, domain, eltype(ulon))
     for ij in eachindex(ghcov)
         a = scale_factor(planet, domain.lon_i[ij], domain.lat_i[ij])
         ghcov[ij] = a*a*gh[ij]
+    end
+    for ij in eachindex(ucov)
+        a = scale_factor(planet, domain.lon_e[ij], domain.lat_e[ij])
+        angle = domain.angle_e[ij]
+        ucov[ij] = (cos(angle)*ulon[ij] + sin(angle)*ulat[ij])*a*de[ij]
+    end
+    return (; ghcov, ucov)
+end
+
+function observable_to_prognostic_new(planet, domain::VoronoiSphere, (; gh, ulon, ulat))
+    (; de, Ai) = domain
+    ghcov, ucov = copy(gh), allocate_field(:vector, domain, eltype(ulon))
+    for ij in eachindex(ghcov)
+        a = scale_factor(planet, domain.lon_i[ij], domain.lat_i[ij])
+        ghcov[ij] = a*a*gh[ij]*Ai[ij]
     end
     for ij in eachindex(ucov)
         a = scale_factor(planet, domain.lon_e[ij], domain.lat_e[ij])

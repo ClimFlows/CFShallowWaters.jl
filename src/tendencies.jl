@@ -10,24 +10,33 @@ function same(x,y)
     return x
 end
 
-
 function scratch_SW(domain::VoronoiSphere, (; ucov, ghcov))
     F = same(eltype(ucov), eltype(ghcov))
-    allocate_fields((qv=:dual, qe=:vector, U=:vector, B=:scalar), domain, F)
+    allocate_fields((qv=:dual, qe=:vector, U=:vector, B=:scalar, gh=:scalar), domain, F)
 end
 
 function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSphere)
     hodges = mesh.le_de
+    inv_Ai = mesh.inv_Ai
     radius = model.planet.radius
-    U = massflux!(scratch.U, ucov, ghcov, radius, mesh.edge_left_right, hodges)
-    B = bernoulli!(scratch.B, ghcov, ucov, radius, mesh.primal_deg, mesh.Ai, hodges, mesh.primal_edge)
-    qv = voronoi_potential_vorticity!(scratch.qv, model.fcov, ucov, ghcov, mesh.Av, mesh.dual_vertex, mesh.dual_edge, mesh.dual_ne, mesh.Riv2)
+
+    gh = scratch.gh
+    @. gh = ghcov
+#    @. gh = inv_Ai*gh
+
+    U = massflux!(scratch.U, ucov, gh, radius, mesh.edge_left_right, hodges)
+    B = bernoulli!(scratch.B, gh, ucov, radius, mesh.primal_deg, mesh.Ai, hodges, mesh.primal_edge)
+    qv = voronoi_potential_vorticity!(scratch.qv, model.fcov, ucov, gh, mesh.Av, mesh.dual_vertex, mesh.dual_edge, mesh.dual_ne, mesh.Riv2)
     ducov = voronoi_du!(dstate.ucov, scratch.qe, qv, U, B, mesh.edge_down_up,
         mesh.edge_left_right, mesh.trisk_deg, mesh.trisk, mesh.wee)
     dghcov = voronoi_dm!(dstate.ghcov, U, mesh.Ai, mesh.primal_deg, mesh.primal_edge, mesh.primal_ne)
+
+    @. dghcov = inv_Ai * dghcov
+
     return (ghcov=dghcov, ucov=ducov)
 end
 
+#=
 function tendencies_SW( (; ucov, ghcov), model, mesh::VoronoiSphere)
     hodges = mesh.le_de
     radius = model.planet.radius
@@ -39,6 +48,7 @@ function tendencies_SW( (; ucov, ghcov), model, mesh::VoronoiSphere)
     dghcov = voronoi_dm!(void, U, mesh.Ai, mesh.primal_deg, mesh.primal_edge, mesh.primal_ne)
     return (ghcov=dghcov, ucov=ducov)
 end
+=#
 
 #== Voronoi, mass flux ==#
 
@@ -141,7 +151,8 @@ voronoi_dm!(::Void, U, areas, degree, edges, signs) =
 function voronoi_dm!(dm::AbstractVector, U, areas, degree, edges, signs)
     @fast for ij in eachindex(dm)
         deg = degree[ij]
-        @unroll deg in 5:7 dm[ij] = -inv(areas[ij]) * sum( signs[e,ij]*U[edges[e,ij]] for e=1:deg )
+#        @unroll deg in 5:7 dm[ij] = -inv(areas[ij]) * sum( signs[e,ij]*U[edges[e,ij]] for e=1:deg )
+        @unroll deg in 5:7 dm[ij] = -sum( signs[e,ij]*U[edges[e,ij]] for e=1:deg )
     end
     return dm
 end
