@@ -1,9 +1,11 @@
-#======== All =========#
+module Voronoi
 
-scratch_space(model, state) = scratch_SW(model.domain, state)
-tendencies!(dstate, model, state, scratch, t) = tendencies_SW!(dstate, state, scratch, model, model.domain)
+using ManagedLoops: @loops, @unroll
+using CFDomains: VoronoiSphere, allocate_fields
+using MutatingOrNot: void, Void
+using CFShallowWaters: @fast
 
-#========= Voronoi ========#
+import CFShallowWaters: scratch_SW, tendencies_SW!
 
 function same(x,y)
     @assert x==y
@@ -330,3 +332,5 @@ end
 end
 
 #== velocity tendency du = -q x U - grad B - theta * grad(B) ==#
+
+end # module Voronoi
