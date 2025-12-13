@@ -20,9 +20,8 @@ function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSp
     inv_Ai = mesh.inv_Ai
     radius = model.planet.radius
 
-    gh = scratch.gh
-    @. gh = ghcov
-    @. gh = inv_Ai*gh
+    (; gh) = scratch
+    @. gh = inv_Ai*ghcov
 
     U = massflux!(scratch.U, ucov, gh, radius, mesh.edge_left_right, hodges)
     B = bernoulli!(scratch.B, gh, ucov, radius, mesh.primal_deg, mesh.Ai, hodges, mesh.primal_edge)
@@ -30,8 +29,6 @@ function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSp
     ducov = voronoi_du!(dstate.ucov, scratch.qe, qv, U, B, mesh.edge_down_up,
         mesh.edge_left_right, mesh.trisk_deg, mesh.trisk, mesh.wee)
     dghcov = voronoi_dm!(dstate.ghcov, U, mesh.Ai, mesh.primal_deg, mesh.primal_edge, mesh.primal_ne)
-
-#    @. dghcov = inv_Ai * dghcov
 
     return (ghcov=dghcov, ucov=ducov)
 end

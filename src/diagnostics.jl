@@ -51,14 +51,14 @@ end
 
 function diag_pv_voronoi(domain::VoronoiSphere, planet, model, state)
     (; ucov, ghcov) = state
-    Av, fcov     = domain.Av, model.fcov
+    fcov     = model.fcov
     signs, edges = domain.dual_ne, domain.dual_edge
-    Aiv, cells   = domain.Riv2, domain.dual_vertex
+    Avi, cells   = domain.Avi, domain.dual_vertex
     pv = allocate_field(:dual, domain, eltype(domain))
     gh = @. domain.inv_Ai*ghcov
     @fast @unroll for ij in eachindex(pv)
         zeta = sum( ucov[edges[edge,ij]]*signs[edge,ij] for edge=1:3 )
-        mv  =  Av[ij]*sum( gh[cells[vertex,ij]]*Aiv[vertex,ij] for vertex=1:3 )
+        mv  =  sum( gh[cells[vertex,ij]]*Avi[vertex,ij] for vertex=1:3 )
         pv[ij] = inv(mv)*(fcov[ij] + zeta)
     end
     return pv
