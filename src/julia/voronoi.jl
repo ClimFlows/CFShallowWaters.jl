@@ -18,27 +18,33 @@ end
 
 function scratch_SW(domain::VoronoiSphere, (; ucov, ghcov))
     F = same(eltype(ucov), eltype(ghcov))
-    allocate_fields((qv=:dual, qe=:vector, U=:vector, K=:scalar, gh=:scalar), domain, F)
+    allocate_fields((ghv=:dual, zetav=:dual, qv=:dual, qe=:vector, U=:vector, u2=:scalar, gh=:scalar), domain, F)
 end
 
 function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSphere)
-    hodges = mesh.le_de
-    inv_Ai = mesh.inv_Ai
-    radius = model.planet.radius
+    inv_Ai, fcov, radius = mesh.inv_Ai, model.fcov, model.planet.radius
     metric = radius^-2
 
-    (; gh, U, K) = scratch
-    @. gh = inv_Ai*ghcov
+    (; gh, U, u2, ghv, zetav) = scratch
 
     cflux! = Ops.CenteredFlux(mesh)
-    @lazy u(ucov ; metric) = metric*ucov
-    cflux!(U, nothing, gh, u)
+    square! = Ops.SquaredCovector(mesh)
+    curl! = Ops.Curl(mesh) # 1-form -> 2-form
+    to_dual! = Ops.DualFromPrimal(mesh) # 0-form -> 2-form
+#    to_edge! = Ops.Average_ve(mesh) # 0-form -> 0-form
 
-    KE! = Ops.SquaredCovector(mesh)
-    KE!(K, nothing, ucov)
-    @lazy B(K, gh ; inv_Ai, metric) = metric*(inv_Ai*K/2 + gh)
+    @lazy ucontra(ucov ; metric) = metric*ucov
+    @lazy gh0(ghcov ; inv_Ai) = inv_Ai*ghcov
+    cflux!(U, nothing, gh0, ucontra)
 
-    qv = voronoi_potential_vorticity!(scratch.qv, model.fcov, ucov, gh, mesh.Av, mesh.dual_vertex, mesh.dual_edge, mesh.dual_ne, mesh.Riv2)
+    square!(u2, nothing, ucov)
+    @lazy B(u2, ghcov ; inv_Ai, metric) = (metric*inv_Ai)*(u2/2 + ghcov)
+
+    to_dual!(ghv, nothing, gh0)
+    curl!(zetav, nothing, ucov)
+    @lazy qv(zetav, ghv ; fcov) = (zetav+fcov)/ghv
+
+    # qv = voronoi_potential_vorticity!(scratch.qv, model.fcov, ucov, gh0, mesh.Av, mesh.dual_vertex, mesh.dual_edge, mesh.dual_ne, mesh.Riv2)
     ducov = voronoi_du!(dstate.ucov, scratch.qe, qv, U, B, mesh.edge_down_up,
         mesh.edge_left_right, mesh.trisk_deg, mesh.trisk, mesh.wee)
     dghcov = voronoi_dm!(dstate.ghcov, U, mesh.Ai, mesh.primal_deg, mesh.primal_edge, mesh.primal_ne)
