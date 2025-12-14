@@ -1,7 +1,11 @@
 module Voronoi
 
 using ManagedLoops: @loops, @unroll
+
 using CFDomains: VoronoiSphere, allocate_fields
+using CFDomains: VoronoiOperators as Ops
+using CFDomains.LazyExpressions: @lazy
+
 using MutatingOrNot: void, Void
 using CFShallowWaters: @fast
 
@@ -14,19 +18,26 @@ end
 
 function scratch_SW(domain::VoronoiSphere, (; ucov, ghcov))
     F = same(eltype(ucov), eltype(ghcov))
-    allocate_fields((qv=:dual, qe=:vector, U=:vector, B=:scalar, gh=:scalar), domain, F)
+    allocate_fields((qv=:dual, qe=:vector, U=:vector, K=:scalar, gh=:scalar), domain, F)
 end
 
 function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSphere)
     hodges = mesh.le_de
     inv_Ai = mesh.inv_Ai
     radius = model.planet.radius
+    metric = radius^-2
 
-    (; gh) = scratch
+    (; gh, U, K) = scratch
     @. gh = inv_Ai*ghcov
 
-    U = massflux!(scratch.U, ucov, gh, radius, mesh.edge_left_right, hodges)
-    B = bernoulli!(scratch.B, gh, ucov, radius, mesh.primal_deg, mesh.Ai, hodges, mesh.primal_edge)
+    cflux! = Ops.CenteredFlux(mesh)
+    @lazy u(ucov ; metric) = metric*ucov
+    cflux!(U, nothing, gh, u)
+
+    KE! = Ops.SquaredCovector(mesh)
+    KE!(K, nothing, ucov)
+    @lazy B(K, gh ; inv_Ai, metric) = metric*(inv_Ai*K/2 + gh)
+
     qv = voronoi_potential_vorticity!(scratch.qv, model.fcov, ucov, gh, mesh.Av, mesh.dual_vertex, mesh.dual_edge, mesh.dual_ne, mesh.Riv2)
     ducov = voronoi_du!(dstate.ucov, scratch.qe, qv, U, B, mesh.edge_down_up,
         mesh.edge_left_right, mesh.trisk_deg, mesh.trisk, mesh.wee)
