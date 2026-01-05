@@ -1,0 +1,12 @@
+[deps]
+CFDomains = "3699aaca-035b-4155-96ec-eecb526248de"
+CFPlanets = "9c2ca15e-caec-41c0-a22c-2e93fe5a241f"
+CFTimeSchemes = "79282218-dfaf-41aa-91df-a06f65ece871"
+ClimFlowsData = "f57ce217-a21f-4063-8e40-561e9bf56723"
+ClimFlowsTestCases = "55a4ed1b-ebae-44a5-bd1f-98d158431b8a"
+DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
+Mooncake = "da2b9cff-9c12-43a0-ae48-6db2b0edb7d6"
+NetCDF = "30363a11-5582-574a-97bb-aa9a979735b9"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
