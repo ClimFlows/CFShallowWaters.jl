@@ -26,10 +26,11 @@ function initialize_SW(domain::VoronoiSphere, model, fun, args...)
 end
 
 function observable_to_prognostic(planet, domain::VoronoiSphere, (; gh, ulon, ulat))
-    de, ghcov, ucov = domain.de, copy(gh), allocate_field(:vector, domain, eltype(ulon))
+    (; de, Ai) = domain
+    ghcov, ucov = copy(gh), allocate_field(:vector, domain, eltype(ulon))
     for ij in eachindex(ghcov)
         a = scale_factor(planet, domain.lon_i[ij], domain.lat_i[ij])
-        ghcov[ij] = a*a*gh[ij]
+        ghcov[ij] = a*a*gh[ij]*Ai[ij]
     end
     for ij in eachindex(ucov)
         a = scale_factor(planet, domain.lon_e[ij], domain.lat_e[ij])
