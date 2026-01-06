@@ -10,8 +10,27 @@ import ClimFlowsTestCases as CFTestCases
 
 using CFShallowWaters
 
-using JET
+using JET: @test_call, @test_opt
 using Test
+
+macro show_opt_call(expr)
+    return esc(quote
+        $expr
+        @showtime $expr
+        @test_opt $expr
+        @test_call $expr
+        $expr
+    end)
+end
+
+macro show_call(expr)
+    return esc(quote
+        $expr
+        @showtime $expr
+        @test_call $expr
+        $expr
+    end)
+end
 
 cst(args) = map(DI.Constant, args)
 prepare(loss, backend, x, args) = DI.prepare_gradient(loss, backend, x, cst(args)...)
@@ -73,22 +92,19 @@ dynamics, diags, state0, scheme, dt = setup_RSW(sphere, prec)
     t0 = zero(prec)
     scratch = CFTimeSchemes.scratch_space(dynamics, state0)
     dstate = CFTimeSchemes.model_dstate(dynamics, state0)
-    CFTimeSchemes.tendencies!(dstate, dynamics, state0, scratch, t0)
-    @report_opt CFTimeSchemes.tendencies!(dstate, dynamics, state0, scratch, t0)
-
-    loss(state0, dstate, dynamics, scratch, t0)
-    @showtime loss(state0, dstate, dynamics, scratch, t0)
+    
+    @show_opt_call CFTimeSchemes.tendencies!(dstate, dynamics, state0, scratch, t0)
+    @show_opt_call loss(state0, dstate, dynamics, scratch, t0)
 
     backend = DI.AutoMooncake(; config=nothing)
     args = dstate, dynamics, scratch, t0
-    prep = prepare(loss, backend, state0, args);
-    grad = gradient(loss, prep, backend, state0, args);
-    @showtime grad = gradient(loss, prep, backend, state0, args);
+    prep = prepare(loss, backend, state0, args)
+    grad = @show_call gradient(loss, prep, backend, state0, args)
 
     FD = DI.AutoForwardDiff()
     args2 = state0, grad, dynamics
     prep2 = prepare(loss_FD, FD, t0, args2);
-    L2_grad_ = gradient(loss_FD, prep2, FD, t0, args2);
+    L2_grad_ = @show_call gradient(loss_FD, prep2, FD, t0, args2);
     
     @info "Voronoi adjoint" L2(grad) L2_grad_
     @test L2(grad) ≈ L2_grad_
