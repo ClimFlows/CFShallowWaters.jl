@@ -49,7 +49,7 @@ coriolis_cov(F, planet, domain::VoronoiSphere) =
 coriolis_voronoi(F, planet, lon_v, lat_v, Av) = F.(coriolis(planet, lon_v, lat_v) .* Av)
 
 scratch_space(model, state) = scratch_SW(model.domain, state)
-tendencies!(dstate, model, state, scratch, t) = tendencies_SW!(dstate, state, scratch, model, model.domain)
+tendencies!(dstate, scratch, model, state, t) = tendencies_SW!(dstate, scratch, state, model, model.domain)
 
 # implemented in Voronoi submodule
 function scratch_SW end

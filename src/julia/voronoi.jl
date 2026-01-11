@@ -1,6 +1,7 @@
 module Voronoi
 
 using ManagedLoops: @loops, @unroll
+using MutatingOrNot: similar!, has_dryrun
 
 using CFDomains: VoronoiSphere, allocate_fields
 using CFDomains: VoronoiOperators as Ops
@@ -21,11 +22,21 @@ function scratch_SW(domain::VoronoiSphere, (; ucov, ghcov))
     allocate_fields((ghv=:dual, zetav=:dual, qe=:vector, U=:vector, u2=:scalar), domain, F)
 end
 
-function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSphere)
+function tendencies_SW!(dstate, scratch, (; ghcov, ucov), model, mesh::VoronoiSphere)
     inv_Ai, fcov, radius = mesh.inv_Ai, model.fcov, model.planet.radius
     metric = radius^-2
 
-    (; U, u2, ghv, zetav, qe) = scratch
+    dghcov = similar!(dstate.ghcov, ghcov)
+    ducov = similar!(dstate.ucov, ucov)
+
+    U = similar!(scratch.U, ucov)
+    u2 = similar!(scratch.u2, ghcov)
+    zetav = similar!(scratch.zetav, fcov)
+    ghv = similar!(scratch.ghv, fcov)
+    qe = similar!(scratch.qe, ucov)
+
+    result = (; ghcov=dghcov, ucov=ducov), (; U, u2, ghv, zetav, qe)
+    has_dryrun(dstate, scratch) && return result # early exit if only allocation desired
 
     cflux! = Ops.CenteredFlux(mesh)
     square! = Ops.SquaredCovector(mesh)
@@ -39,19 +50,19 @@ function tendencies_SW!( dstate, (; ucov,ghcov), scratch, model, mesh::VoronoiSp
     @lazy ucontra(ucov ; metric) = metric*ucov
     @lazy gh0(ghcov ; inv_Ai) = inv_Ai*ghcov
     cflux!(U, nothing, gh0, ucontra)
-    minus_div!(dstate.ghcov, nothing, U)
+    minus_div!(dghcov, nothing, U)
 
     square!(u2, nothing, ucov)
     @lazy B(u2, ghcov ; inv_Ai, metric) = (metric*inv_Ai)*(u2/2 + ghcov)
-    minus_grad!(dstate.ucov, nothing, B)
+    minus_grad!(ducov, nothing, B)
 
     to_dual!(ghv, nothing, gh0)
     curl!(zetav, nothing, ucov)
     @lazy qv(zetav, ghv ; fcov) = (zetav+fcov)/ghv
     to_edge!(qe, nothing, qv)
-    add_trisk!(dstate.ucov, nothing, U, qe)
+    add_trisk!(ducov, nothing, U, qe)
 
-    return dstate
+    return result
 end
 
 end # module Voronoi
