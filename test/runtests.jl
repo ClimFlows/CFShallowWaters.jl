@@ -70,13 +70,13 @@ function setup_RSW(
 end
 
 function loss(state, dstate, model, scratch, t)
-    CFTimeSchemes.tendencies!(dstate, model, state, scratch, t)
+    CFTimeSchemes.tendencies!(dstate, scratch, model, state, t)
     L2(dstate.ghcov)+L2(dstate.ucov)
 end
 
 function loss_FD(t, state, grad, model)
     state0 = map((g,s)->axpy(t,g,s), grad, state)
-    scratch = CFTimeSchemes.scratch_space(model, state0)
+    scratch = CFTimeSchemes.scratch_space(model, state0, t)
     dstate = CFTimeSchemes.model_dstate(model, state0)
     # @info "loss_FD" typeof(t) typeof(state0) typeof(scratch)
     loss(state0, dstate, model, scratch, t)
@@ -90,10 +90,10 @@ dynamics, diags, state0, scheme, dt = setup_RSW(sphere, prec)
 
 @testset "Voronoi adjoint" begin
     t0 = zero(prec)
-    scratch = CFTimeSchemes.scratch_space(dynamics, state0)
+    scratch = CFTimeSchemes.scratch_space(dynamics, state0, t0)
     dstate = CFTimeSchemes.model_dstate(dynamics, state0)
     
-    @show_opt_call CFTimeSchemes.tendencies!(dstate, dynamics, state0, scratch, t0)
+    @show_opt_call CFTimeSchemes.tendencies!(dstate, scratch, dynamics, state0, t0)
     @show_opt_call loss(state0, dstate, dynamics, scratch, t0)
 
     backend = DI.AutoMooncake(; config=nothing)

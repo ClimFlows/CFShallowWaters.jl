@@ -31,8 +31,8 @@ function tendencies_SW!(dstate, scratch, (; ghcov, ucov), model, mesh::VoronoiSp
 
     U = similar!(scratch.U, ucov)
     u2 = similar!(scratch.u2, ghcov)
-    zetav = similar!(scratch.zetav, fcov)
-    ghv = similar!(scratch.ghv, fcov)
+    zetav = similar!(scratch.zetav, fcov, eltype(ucov))
+    ghv = similar!(scratch.ghv, zetav)
     qe = similar!(scratch.qe, ucov)
 
     result = (; ghcov=dghcov, ucov=ducov), (; U, u2, ghv, zetav, qe)
