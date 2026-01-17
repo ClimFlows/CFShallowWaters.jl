@@ -8,6 +8,7 @@ DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 Mooncake = "da2b9cff-9c12-43a0-ae48-6db2b0edb7d6"
+MutatingOrNot = "6a37069a-9a67-4b2d-a34a-f09ab4b23c7c"
 NetCDF = "30363a11-5582-574a-97bb-aa9a979735b9"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 

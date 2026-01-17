@@ -3,6 +3,8 @@ import DifferentiationInterface as DI
 using NetCDF: ncread
 
 using CFDomains: CFDomains, VoronoiSphere, void
+using MutatingOrNot.Allocators
+
 using ClimFlowsData: DYNAMICO_reader, DYNAMICO_meshfile
 import CFPlanets
 import CFTimeSchemes
@@ -12,6 +14,7 @@ using CFShallowWaters
 
 using JET: @test_call, @test_opt
 using Test
+using Base: summarysize
 
 macro show_opt_call(expr)
     return esc(quote
@@ -82,6 +85,8 @@ function loss_FD(t, state, grad, model)
     loss(state0, dstate, model, scratch, t)
 end
 
+first_store(smart) = first(values(Allocators.stores(smart)))
+
 meshname, prec = "uni.2deg.mesh.nc", Float64
 sphere = VoronoiSphere(DYNAMICO_reader(ncread, DYNAMICO_meshfile(meshname)) ; prec)
 @info sphere
@@ -90,16 +95,29 @@ dynamics, diags, state0, scheme, dt = setup_RSW(sphere, prec)
 
 @testset "Voronoi adjoint" begin
     t0 = zero(prec)
-    scratch = CFTimeSchemes.scratch_space(dynamics, state0, t0)
     dstate = CFTimeSchemes.model_dstate(dynamics, state0)
+    scratch = CFTimeSchemes.scratch_space(dynamics, state0, t0)
     
     @show_opt_call CFTimeSchemes.tendencies!(dstate, scratch, dynamics, state0, t0)
     @show_opt_call loss(state0, dstate, dynamics, scratch, t0)
 
+    smart = SmartAllocator()
+    loss(state0, dstate, dynamics, smart, t0)
+#    Allocators.debug_store(:test, first_store(smart))
+    @show_call loss(state0, dstate, dynamics, smart, t0)
+#    Allocators.debug_store(:test, first_store(smart))
+
     backend = DI.AutoMooncake(; config=nothing)
+
+    args = dstate, dynamics, smart, t0
+    prep = prepare(loss, backend, state0, args)
+    grad = @show_call gradient(loss, prep, backend, state0, args)
+    @info "" summarysize(prep) summarysize(smart) summarysize(args)
+
     args = dstate, dynamics, scratch, t0
     prep = prepare(loss, backend, state0, args)
     grad = @show_call gradient(loss, prep, backend, state0, args)
+    @info "" summarysize(prep) summarysize(scratch) summarysize(args)
 
     FD = DI.AutoForwardDiff()
     args2 = state0, grad, dynamics
