@@ -2,8 +2,8 @@ import Mooncake, ForwardDiff
 import DifferentiationInterface as DI
 using NetCDF: ncread
 
-using CFDomains: CFDomains, VoronoiSphere, void
-using MutatingOrNot.Allocators
+using CFDomains: CFDomains, VoronoiSphere
+using MutatingOrNot: void, SmartAllocator
 
 using ClimFlowsData: DYNAMICO_reader, DYNAMICO_meshfile
 import CFPlanets

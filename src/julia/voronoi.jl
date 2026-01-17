@@ -1,8 +1,7 @@
 module Voronoi
 
 using ManagedLoops: @loops, @unroll
-using MutatingOrNot: similar!, has_dryrun
-using MutatingOrNot.Allocators: mfree
+using MutatingOrNot: malloc, mfree, has_dryrun
 
 using CFDomains: VoronoiSphere, allocate_fields
 using CFDomains: VoronoiOperators as Ops
@@ -27,17 +26,17 @@ function tendencies_SW!(dstate, tmp, (; ghcov, ucov), model, mesh::VoronoiSphere
     inv_Ai, fcov, radius = mesh.inv_Ai, model.fcov, model.planet.radius
     metric = radius^-2
 
-    dghcov = similar!(dstate.ghcov, ghcov)
-    ducov = similar!(dstate.ucov, ucov)
+    dghcov = malloc(dstate.ghcov, ghcov)
+    ducov = malloc(dstate.ucov, ucov)
 
-    U = similar!(tmp.U, ucov)
-    u2 = similar!(tmp.u2, ghcov)
-    zetav = similar!(tmp.zetav, fcov, eltype(ucov))
-    ghv = similar!(tmp.ghv, zetav)
-    qe = similar!(tmp.qe, ucov)
+    U = malloc(tmp.U, ucov)
+    u2 = malloc(tmp.u2, ghcov)
+    zetav = malloc(tmp.zetav, fcov, eltype(ucov))
+    ghv = malloc(tmp.ghv, zetav)
+    qe = malloc(tmp.qe, ucov)
 
     result = (; ghcov=dghcov, ucov=ducov), (; U, u2, ghv, zetav, qe)
-    has_dryrun(dstate, tmp) && return result # early exit if only allocation desired
+    has_dryrun(dstate) && has_dryrun(tmp) && return result # early exit if only allocation desired
 
     cflux! = Ops.CenteredFlux(mesh)
     square! = Ops.SquaredCovector(mesh)
