@@ -2,7 +2,8 @@ import Mooncake, ForwardDiff
 import DifferentiationInterface as DI
 using NetCDF: ncread
 
-using CFDomains: CFDomains, VoronoiSphere
+using CFDomains: CFDomains
+using VoronoiSpheres: VoronoiSpheres, VoronoiSphere
 using MutatingOrNot: void, SmartAllocator
 
 using ClimFlowsData: DYNAMICO_reader, DYNAMICO_meshfile
@@ -55,7 +56,7 @@ function setup_RSW(
     (; R0, Omega, gH0) = testcase.params
 
     ## numerical parameters
-    @time dx = R0 * CFDomains.laplace_dx(sphere)
+    @time dx = R0 * VoronoiSpheres.laplace_dx(sphere)
     @info "Effective mesh size dx = $(round(dx/1e3)) km"
     dt_dyn = prec(courant * dx / sqrt(gH0))
     @info "Maximum dynamics time step = $(round(dt_dyn)) s"

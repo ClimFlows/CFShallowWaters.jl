@@ -2,7 +2,8 @@ module CFShallowWaters
 
 using ManagedLoops: @unroll
 using CFPlanets: ShallowTradPlanet, coriolis, scale_factor
-using CFDomains: VoronoiSphere, allocate_fields, allocate_field
+using CFDomains: allocate_fields, allocate_field
+using VoronoiSpheres: VoronoiSphere
 
 using CookBooks
 import MemberFunctions: WithMembers, member_functions

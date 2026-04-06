@@ -3,9 +3,9 @@ module Voronoi
 using ManagedLoops: @loops, @unroll
 using MutatingOrNot: malloc, mfree, has_dryrun
 
-using CFDomains: VoronoiSphere, allocate_fields
-using CFDomains: VoronoiOperators as Ops
+using CFDomains: allocate_fields, LazyOperators as LazyOps
 using CFDomains.LazyExpressions: @lazy
+using VoronoiSpheres: VoronoiSphere, Operators as Ops
 
 using MutatingOrNot: void, Void
 using CFShallowWaters: @fast
@@ -43,9 +43,9 @@ function tendencies_SW!(dstate, tmp, (; ghcov, ucov), model, mesh::VoronoiSphere
     curl! = Ops.Curl(mesh) # 1-form -> 2-form
     to_dual! = Ops.DualFromPrimal(mesh) # 0-form -> 2-form
     to_edge! = Ops.EdgeFromDual(mesh) # 0-form -> 0-form
-    minus_div! = Ops.Divergence(mesh, Ops.setminus!)
-    minus_grad! = Ops.Gradient(mesh, Ops.setminus!) # 0-form -> 1-form
-    add_trisk! = Ops.EnergyTRiSK(mesh, Ops.addto!) # (2-form, 0-form at edges) -> 1-form
+    minus_div! = Ops.Divergence(mesh, LazyOps.setminus!)
+    minus_grad! = Ops.Gradient(mesh, LazyOps.setminus!) # 0-form -> 1-form
+    add_trisk! = Ops.EnergyTRiSK(mesh, LazyOps.addto!) # (2-form, 0-form at edges) -> 1-form
 
     @lazy ucontra(ucov ; metric) = metric*ucov
     @lazy gh0(ghcov ; inv_Ai) = inv_Ai*ghcov
