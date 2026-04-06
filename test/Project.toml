@@ -11,6 +11,8 @@ Mooncake = "da2b9cff-9c12-43a0-ae48-6db2b0edb7d6"
 MutatingOrNot = "6a37069a-9a67-4b2d-a34a-f09ab4b23c7c"
 NetCDF = "30363a11-5582-574a-97bb-aa9a979735b9"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+VoronoiSpheres = "75509e46-8d8c-4f7e-9072-0d95c5edd9e4"
 
 [compat]
 ClimFlowsTestCases = "0.1"
+VoronoiSpheres = "0.1.4"
