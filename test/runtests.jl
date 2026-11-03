@@ -6,7 +6,7 @@ using CFDomains: CFDomains
 using VoronoiSpheres: VoronoiSpheres, VoronoiSphere
 using MutatingOrNot: void, SmartAllocator
 
-using ClimFlowsData: DYNAMICO_reader, DYNAMICO_meshfile
+using ClimFlowsData: DYNAMICO_reader, VoronoiMeshes
 import CFPlanets
 import CFTimeSchemes
 import ClimFlowsTestCases as CFTestCases
@@ -89,7 +89,7 @@ end
 first_store(smart) = first(values(Allocators.stores(smart)))
 
 meshname, prec = "uni.2deg.mesh.nc", Float64
-sphere = VoronoiSphere(DYNAMICO_reader(ncread, DYNAMICO_meshfile(meshname)) ; prec)
+sphere = VoronoiSphere(DYNAMICO_reader(ncread, VoronoiMeshes(meshname)) ; prec)
 @info sphere
 
 dynamics, diags, state0, scheme, dt = setup_RSW(sphere, prec)
